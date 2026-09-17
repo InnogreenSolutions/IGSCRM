@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
@@ -9,16 +9,31 @@ const people = [
 ];
 
 const seedTasks = [
-  { id: 1, title: 'Prepare quote for Rinkee Ahmed', meta: 'Toronto Beaches · quote requested from field', person: 'tj', group: 'Now', type: 'Quote' },
-  { id: 2, title: 'Call Alex Turner after the assessment', meta: 'Bobcaygeon · customer asked about financing', person: 'max', group: 'Today', type: 'Follow-up' },
-  { id: 3, title: 'Send deposit payment link', meta: 'Lennox furnace · $950 deposit outstanding', person: 'shanairah', group: 'Today', type: 'Payment' },
-  { id: 4, title: 'Review uploaded lead sheet', meta: '14 new leads · route and assign', person: 'tj', group: 'Waiting', type: 'Leads' },
+  { id: 1, title: 'Helen Slingsby follow-up', meta: 'High priority · contact customer and record next action', person: 'tj', group: 'Now', type: 'High priority' },
+  { id: 2, title: 'Write email to EnviroCentre about EAP', meta: 'Draft, review and send from the office dashboard', person: 'tj', group: 'Now', type: 'Email' },
+  { id: 3, title: 'Finish company portfolio with licences attached', meta: 'Add TSSA, WSIB, insurance, HRAI and technician credentials', person: 'tj', group: 'Today', type: 'Project' },
+  { id: 4, title: 'Organize heat pump project pictures', meta: 'Sort by customer, equipment and completed installation', person: 'tj', group: 'Today', type: 'Documents' },
+  { id: 5, title: 'Submit Small Business Starter grant documents', meta: 'Confirm required documents before submission', person: 'tj', group: 'Today', type: 'Grant' },
+  { id: 6, title: 'QuickBooks cleanup', meta: 'Scheduled office block · categorize receipts and reconcile activity', person: 'tj', group: 'Waiting', type: 'Finance' },
+  { id: 7, title: 'Rent due reminder', meta: 'Recurring monthly business reminder', person: 'tj', group: 'Waiting', type: 'Payment' },
+  { id: 8, title: 'Review upcoming payments', meta: 'Check deposits, supplier invoices and balances coming due', person: 'tj', group: 'Waiting', type: 'Finance' },
 ];
 
-const customers = [
-  { id: 1, name: 'Rinkee Ahmed', location: 'Toronto Beaches', stage: 'Quote requested', owner: 'tj', equipment: 'Full home heat pump', next: 'Office to draft proposal' },
-  { id: 2, name: 'Alex Turner', location: 'Bobcaygeon', stage: 'Appointment booked', owner: 'max', equipment: 'Electric baseboard', next: 'Visit 11:00 AM today' },
-  { id: 3, name: 'Pali Singh', location: 'Brampton', stage: 'Planning', owner: 'tj', equipment: 'Heat pump + attic insulation', next: 'Awaiting retrofit scope' },
+const seedCustomers = [
+  { id: 1, name: 'Rinkee Ahmed', location: 'Toronto Beaches', stage: 'Assessment Complete', owner: 'tj', equipment: 'Full home heat pump', next: 'Office to draft proposal', quoteRequested: true, value: null },
+  { id: 2, name: 'Alex Turner', location: 'Bobcaygeon', stage: 'Appointment Booked', owner: 'max', equipment: 'Electric baseboard', next: 'Visit 11:00 AM today', quoteRequested: false, value: null },
+  { id: 3, name: 'Pali Singh', location: 'Brampton', stage: 'New Lead', owner: 'tj', equipment: 'Heat pump + attic insulation', next: 'Review retrofit scope', quoteRequested: false, value: null },
+];
+
+const pipelineStages = ['New Lead', 'Appointment Booked', 'Assessment Complete', 'Quote Sent', 'Follow-Up', 'Scheduled', 'Completed', 'Closed Won'];
+
+const starterLinks = [
+  'EAP Application',
+  'OESP Application',
+  'HRS+ Program Application',
+  'Peterborough Grant Links',
+  'Toronto HELP Loan',
+  'Brampton Home Retrofit Loan',
 ];
 
 function Avatar({ personId, small = false }) {
@@ -28,12 +43,18 @@ function Avatar({ personId, small = false }) {
 
 function App() {
   const [active, setActive] = useState('Command Center');
+  const [customers, setCustomers] = useState(() => JSON.parse(localStorage.getItem('igs-customers') || 'null') || seedCustomers);
   const [selected, setSelected] = useState(customers[0]);
-  const [tasks, setTasks] = useState(seedTasks);
+  const [tasks, setTasks] = useState(() => JSON.parse(localStorage.getItem('igs-tasks') || 'null') || seedTasks);
   const [showTask, setShowTask] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
+  const [closeCustomer, setCloseCustomer] = useState(null);
+  const [scheduleCustomer, setScheduleCustomer] = useState(null);
   const [voiceText, setVoiceText] = useState('');
   const [message, setMessage] = useState('Your operating system is ready. Pick the next move.');
+
+  useEffect(() => localStorage.setItem('igs-customers', JSON.stringify(customers)), [customers]);
+  useEffect(() => localStorage.setItem('igs-tasks', JSON.stringify(tasks)), [tasks]);
 
   const openWork = (customer) => {
     setSelected(customer);
@@ -60,8 +81,46 @@ function App() {
     setMessage('Voice memo saved. A review task was added to TJ’s dashboard.');
   };
 
+  const updateCustomer = (id, patch) => {
+    setCustomers((current) => current.map((customer) => customer.id === id ? { ...customer, ...patch } : customer));
+    setSelected((current) => current?.id === id ? { ...current, ...patch } : current);
+  };
+
+  const moveCustomer = (customer, nextStage) => {
+    if (nextStage === 'Closed Won') return setCloseCustomer(customer);
+    if (nextStage === 'Scheduled') return setScheduleCustomer(customer);
+    updateCustomer(customer.id, { stage: nextStage });
+    setMessage(`${customer.name} moved to ${nextStage}.`);
+  };
+
+  const saveClosedSale = (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const amount = Number(form.get('amount'));
+    if (!amount) return;
+    updateCustomer(closeCustomer.id, { stage: 'Closed Won', value: amount });
+    setTasks((current) => [{ id: Date.now(), title: `Start job setup for ${closeCustomer.name}`, meta: `$${amount.toLocaleString()} sale logged · confirm deposit and installation plan`, person: 'tj', group: 'Now', type: 'New sale' }, ...current]);
+    setCloseCustomer(null);
+    setMessage(`Closed sale logged for $${amount.toLocaleString()}. Job setup task created.`);
+  };
+
+  const saveSchedule = (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const contractor = String(form.get('contractor') || 'Not selected');
+    const equipment = String(form.get('equipment') || 'Not ordered');
+    updateCustomer(scheduleCustomer.id, { stage: 'Scheduled', contractor, equipmentStatus: equipment });
+    setTasks((current) => [
+      { id: Date.now(), title: `Confirm contractor for ${scheduleCustomer.name}`, meta: contractor, person: 'tj', group: 'Now', type: 'Contractor' },
+      { id: Date.now() + 1, title: `Order equipment for ${scheduleCustomer.name}`, meta: equipment, person: 'tj', group: 'Now', type: 'Equipment' },
+      ...current,
+    ]);
+    setScheduleCustomer(null);
+    setMessage(`${scheduleCustomer.name} scheduled. Contractor and equipment tasks created.`);
+  };
+
   const grouped = useMemo(() => ['Now', 'Today', 'Waiting'].map((group) => ({ group, items: tasks.filter((task) => task.group === group) })), [tasks]);
-  const nav = ['Command Center', 'Customers', 'Leads', 'Calendar & Dispatch', 'Jobs', 'Contractors', 'Quotes & Price Book', 'Tasks & Projects', 'Documents Hub', 'Team & Access', 'Inbox'];
+  const nav = ['Command Center', 'Customers', 'Leads', 'Calendar & Dispatch', 'Jobs', 'Contractors', 'Price Reference', 'Tasks & Projects', 'Documents & Templates', 'Useful Links', 'Team & Access', 'Inbox'];
 
   return (
     <div className="app-shell">
@@ -69,6 +128,7 @@ function App() {
         <div className="brand"><span className="brand-mark">◈</span><div><strong>INNOGREEN</strong><small>OPERATING SYSTEM</small></div></div>
         <nav>{nav.map((item) => <button key={item} className={active === item ? 'nav-item active' : 'nav-item'} onClick={() => { setActive(item); setMessage(`${item} is ready in the central workboard.`); }}><span className="nav-dot" />{item}</button>)}</nav>
         <div className="sidebar-bottom">
+          <a className="quote-launcher" href="https://www.innogreensolutions.com/quotations" target="_blank" rel="noreferrer"><span>＋</span><div><strong>Quotation Maker</strong><small>Open Innogreen quotations</small></div></a>
           <span className="eyebrow gold">OWNER ONLY</span>
           <strong>Finance & cash view</strong>
           <small>QuickBooks connection comes here.</small>
@@ -86,7 +146,7 @@ function App() {
             <button onClick={() => setActive('Leads')}><b>+ Assign lead</b><span>Import, route and send to an agent</span></button>
             <button onClick={() => setActive('Customers')}><b>⌕ Find a customer</b><span>Every email, job, document and payment</span></button>
             <button onClick={() => setShowVoice(true)}><b>◉ Drop a memo</b><span>Speak it. It becomes a usable note.</span></button>
-            <button onClick={() => setActive('Documents Hub')}><b>▣ Documents hub</b><span>Forms agents can open, fill and submit</span></button>
+            <button onClick={() => setActive('Documents & Templates')}><b>▣ Documents hub</b><span>Forms agents can open, fill and submit</span></button>
           </section>
 
           <section className="metrics">
@@ -102,11 +162,13 @@ function App() {
           </section>
 
           <section className="grid two-one lower"><div className="panel"><PanelHead title="Lead and job flow" subtitle="Real work moving forward, not a decorative chart." /><div className="pipeline">{[['New leads',24,'cyan'],['Qualified',18,'indigo'],['Booked',12,'mint'],['Quote requested',6,'gold'],['Jobs running',7,'mint']].map(([label, amount, tone]) => <div className="pipeline-row" key={label}><span>{label}</span><div className="bar"><i className={tone} style={{ width: `${amount / 24 * 100}%` }} /></div><b>{amount}</b></div>)}</div></div><div className="panel"><PanelHead title="Team pulse" subtitle="Each person sees only their own work." />{people.map((person) => <button className="person-row" key={person.id} onClick={() => setMessage(`${person.name}: ${person.availability}`)}><Avatar personId={person.id}/><span><b>{person.name}</b><small>{person.role}</small></span><em>{person.availability}</em></button>)}</div></section>
-        </> : <Workboard active={active} selected={selected} openWork={openWork} setSelected={setSelected} />}
+        </> : <Workboard active={active} selected={selected} openWork={openWork} setSelected={setSelected} customers={customers} tasks={tasks} moveCustomer={moveCustomer} updateCustomer={updateCustomer} />}
       </main>
 
       {showTask && <Modal title="Create a task" close={() => setShowTask(false)}><form onSubmit={addTask}><label>What needs to happen?<input autoFocus name="title" placeholder="Example: Call Rinkee after quote review" /></label><label>Assign to<select name="person">{people.map((person) => <option key={person.id} value={person.id}>{person.name} · {person.role}</option>)}</select></label><button className="primary wide" type="submit">Create task</button></form></Modal>}
       {showVoice && <Modal title="Drop a voice memo" close={() => setShowVoice(false)}><p className="modal-copy">In the live mobile app this records audio, transcribes it and connects it to the right customer or job. For this foundation, paste the spoken note below to test the workflow.</p><textarea autoFocus value={voiceText} onChange={(event) => setVoiceText(event.target.value)} placeholder="Example: Alex wants the financing options emailed Friday. Call after 6." /><button className="primary wide" onClick={saveVoice}>Save transcript and create review task</button></Modal>}
+      {closeCustomer && <Modal title={`Close ${closeCustomer.name} as won`} close={() => setCloseCustomer(null)}><form onSubmit={saveClosedSale}><p className="modal-copy">Enter the final contract amount. The dashboard will log the sale and create the first job setup task.</p><label>Final dollar amount<input autoFocus name="amount" type="number" min="1" step="0.01" placeholder="Example: 6497.50" /></label><button className="primary wide" type="submit">Log sale and create job</button></form></Modal>}
+      {scheduleCustomer && <Modal title={`Schedule ${scheduleCustomer.name}`} close={() => setScheduleCustomer(null)}><form onSubmit={saveSchedule}><p className="modal-copy">Scheduling automatically starts the contractor and equipment workflow.</p><label>Contractor<select name="contractor"><option>Find contractor</option><option>High Efficiency Cooling & Heating</option><option>Internal installation team</option></select></label><label>Equipment status<select name="equipment"><option>Equipment needs ordering</option><option>Quote requested from supplier</option><option>Equipment ordered</option><option>Pickup confirmed</option></select></label><button className="primary wide" type="submit">Schedule and create tasks</button></form></Modal>}
     </div>
   );
 }
@@ -116,10 +178,14 @@ function PanelHead({ title, subtitle, action }) { return <div className="panel-h
 function Task({ task, onOpen }) { return <button className="task" onClick={onOpen}><span className="task-check">✓</span><span className="task-copy"><b>{task.title}</b><small>{task.meta}</small></span><Avatar personId={task.person} small /><span className="task-type">{task.type}</span></button>; }
 function Modal({ title, close, children }) { return <div className="modal-backdrop" onMouseDown={close}><section className="modal" onMouseDown={(event) => event.stopPropagation()}><button className="close" onClick={close}>×</button><h2>{title}</h2>{children}</section></div>; }
 
-function Workboard({ active, selected, openWork, setSelected }) {
-  if (active === 'Customers' || active === 'Leads') return <section className="workboard"><PanelHead title={active} subtitle="One record, one truth. Click a customer to open the full workboard." /><div className="customer-list">{customers.map((customer) => <button key={customer.id} className="customer-row" onClick={() => openWork(customer)}><span className="customer-initial">{customer.name.split(' ').map((part) => part[0]).join('')}</span><span><b>{customer.name}</b><small>{customer.location} · {customer.equipment}</small></span><span className="status">{customer.stage}</span><Avatar personId={customer.owner} small /></button>)}</div></section>;
+function Workboard({ active, selected, openWork, setSelected, customers, tasks, moveCustomer, updateCustomer }) {
+  if (active === 'Customers') return <section className="workboard pipeline-board"><PanelHead title="Customer pipeline" subtitle="Move customer cards from left to right. Quote requested stays a simple checkbox." /><div className="kanban">{pipelineStages.map((stage, stageIndex) => <div className="kanban-column" key={stage}><div className="kanban-heading"><span>{stage}</span><b>{customers.filter((customer) => customer.stage === stage).length}</b></div>{customers.filter((customer) => customer.stage === stage).map((customer) => <article className="customer-card" key={customer.id}><button className="customer-card-main" onClick={() => openWork(customer)}><span className="customer-initial">{customer.name.split(' ').map((part) => part[0]).join('')}</span><span><b>{customer.name}</b><small>{customer.location}</small><small>{customer.equipment}</small></span></button><label className="quote-check"><input type="checkbox" checked={customer.quoteRequested} onChange={(event) => updateCustomer(customer.id, { quoteRequested: event.target.checked })} /> Quote requested</label>{customer.value && <strong className="sale-value">${customer.value.toLocaleString()}</strong>}<div className="card-moves">{stageIndex > 0 && <button onClick={() => moveCustomer(customer, pipelineStages[stageIndex - 1])}>←</button>}{stageIndex < pipelineStages.length - 1 && <button onClick={() => moveCustomer(customer, pipelineStages[stageIndex + 1])}>Move forward →</button>}</div></article>)}</div>)}</div></section>;
+  if (active === 'Leads') return <section className="workboard"><PanelHead title="Leads" subtitle="New opportunities waiting to be assigned or opened as a customer." /><div className="customer-list">{customers.filter((customer) => customer.stage === 'New Lead').map((customer) => <button key={customer.id} className="customer-row" onClick={() => openWork(customer)}><span className="customer-initial">{customer.name.split(' ').map((part) => part[0]).join('')}</span><span><b>{customer.name}</b><small>{customer.location} · {customer.equipment}</small></span><span className="status">{customer.stage}</span><Avatar personId={customer.owner} small /></button>)}</div></section>;
   if (active === 'Workboard') return <section className="workboard detail"><div className="work-title"><div><span className="eyebrow mint">CUSTOMER WORKBOARD</span><h2>{selected.name}</h2><p>{selected.location} · {selected.equipment}</p></div><div><button className="ghost">Call</button><button className="ghost">Email</button><button className="primary">Create job</button></div></div><div className="work-grid"><div className="panel"><PanelHead title="Next action" subtitle={selected.next} /><div className="checklist"><span>✓ Customer details confirmed</span><span>○ Quote preparation</span><span>○ Deposit request</span><span>○ Contractor assignment</span></div></div><div className="panel"><PanelHead title="Office actions" /><button className="wide ghost">Request quote from office</button><button className="wide ghost">Request deposit payment link</button><button className="wide ghost">Open documents</button></div></div></section>;
-  if (active === 'Documents Hub') return <section className="workboard"><PanelHead title="Documents Hub" subtitle="Only approved documents. Agents can open, fill, submit or email them." /><div className="document-grid">{['Homeowner intake', 'Mandatory field checklist', 'Quote request brief', 'Installation closeout', 'EAP evidence checklist', 'Customer project scope'].map((name) => <button className="document" key={name}><span>▣</span><b>{name}</b><small>Open, fill & submit</small></button>)}</div></section>;
+  if (active === 'Tasks & Projects') return <section className="workboard"><PanelHead title="TJ’s Work Hub" subtitle="Your personal operating queue for tasks, reminders and scheduled office work." /><div className="task-center"><div><span className="eyebrow gold">HIGH PRIORITY</span>{tasks.filter((task) => task.group === 'Now').map((task) => <Task key={task.id} task={task} onOpen={() => {}} />)}</div><div><span className="eyebrow mint">TODAY</span>{tasks.filter((task) => task.group === 'Today').map((task) => <Task key={task.id} task={task} onOpen={() => {}} />)}</div><div><span className="eyebrow">SCHEDULED & RECURRING</span>{tasks.filter((task) => task.group === 'Waiting').map((task) => <Task key={task.id} task={task} onOpen={() => {}} />)}</div></div></section>;
+  if (active === 'Documents & Templates') return <section className="workboard"><PanelHead title="Documents & Templates" subtitle="Approved business tools that agents can open, fill, submit or email without changing the master." /><div className="document-section"><span className="eyebrow mint">COMMUNICATION</span><div className="document-grid">{['Customer follow-up email templates', 'Quote cover emails', 'Appointment confirmations'].map((name) => <button className="document" key={name}><span>✉</span><b>{name}</b><small>Open template library</small></button>)}</div></div><div className="document-section"><span className="eyebrow mint">PROGRAM QUESTIONNAIRES</span><div className="document-grid">{['EAP homeowner questionnaire', 'OESP application checklist', 'HRS+ qualification questionnaire'].map((name) => <button className="document" key={name}><span>✓</span><b>{name}</b><small>Fill for customer</small></button>)}</div></div><div className="document-section"><span className="eyebrow mint">SOPS & FIELD DOCUMENTS</span><div className="document-grid">{['Sales visit SOP', 'Installation preparation SOP', 'Mandatory field checklist'].map((name) => <button className="document" key={name}><span>▣</span><b>{name}</b><small>Approved version</small></button>)}</div></div></section>;
+  if (active === 'Price Reference') return <section className="workboard"><PanelHead title="Price Reference" subtitle="Owner-only reference pricing. These are not fixed customer prices or agent-visible margins." /><div className="integration-callout"><div><span className="eyebrow gold">REFERENCE ONLY</span><h2>Your current sheet represents roughly a 20% base return</h2><p>Actual quotations may be higher based on project conditions, labour, risk, financing, materials and required margin. Nothing here automatically prices a customer job.</p></div><button className="primary">Add reference item</button></div><div className="empty-board compact"><span>＋</span><h2>No reference items added yet.</h2><p>Open this section when you are ready to review the current sheet and build the editable reference.</p></div></section>;
+  if (active === 'Useful Links') return <section className="workboard"><PanelHead title="Useful Links" subtitle="Fast access for the office and agents. You can rename every link and add the final URLs later." /><div className="links-grid">{starterLinks.map((name) => <article className="useful-link" key={name}><span>↗</span><div><b>{name}</b><small>URL not added yet</small></div><button className="ghost">Add URL</button></article>)}</div></section>;
   if (active === 'Team & Access') return <section className="workboard"><PanelHead title="Team & access" subtitle="Private workspaces that keep every agent focused on their own customers and jobs." /><div className="team-access-grid">{people.map((person) => <article className="access-card" key={person.id}><Avatar personId={person.id} /><div><b>{person.name}</b><small>{person.role}</small><em>Role-ready profile</em></div><button className="ghost">Set access</button></article>)}</div><div className="integration-callout"><div><span className="eyebrow mint">SECURE SETUP NEXT</span><h2>Add email login and individual app workspaces</h2><p>When you are ready, add each person’s email and number. Financial data stays office-only.</p></div><button className="primary">Invite team member</button></div></section>;
   return <section className="workboard"><PanelHead title={active} subtitle="This central space becomes the active tool, not another dashboard to manage." /><div className="empty-board"><span>✦</span><h2>{active} is ready for its live connection.</h2><p>Use the left navigation to move through the system. Every area opens here.</p></div></section>;
 }
