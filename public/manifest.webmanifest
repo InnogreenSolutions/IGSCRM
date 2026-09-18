@@ -1,0 +1,21 @@
+{
+  "name": "Innogreen Operating System",
+  "short_name": "Innogreen OS",
+  "description": "Private operations cockpit for Innogreen Solutions.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080d18",
+  "theme_color": "#080d18",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/icons/innogreen.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Customers", "short_name": "Customers", "url": "/?open=customers" },
+    { "name": "Tasks", "short_name": "Tasks", "url": "/?open=tasks" },
+    { "name": "Integrations", "short_name": "Cockpit", "url": "/?open=integrations" }
+  ]
+}
