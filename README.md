@@ -2,6 +2,12 @@
 
 The first functional foundation for Innogreen's owner dashboard and agent workflow.
 
+## Confirmed company roles
+
+**Romeo is the Owner & Operator. TJ is the Sales Operations Manager**, working in sales and sales operations. Romeo confirmed these roles directly on 21 September 2026. They override contradictory labels in earlier generated work.
+
+`COMPANY-ROLES.md` records the authoritative correction, `AGENTS.md` carries project instructions, and `src/company-roles.js` provides the shared identity configuration used by the application. Company titles do not grant permissions or change customer-record assignments.
+
 ## Run locally
 
 ```bash
@@ -11,20 +17,20 @@ npm run dev
 
 ## Current working foundation
 
-- Owner Command Center with My Day, action queue, pipeline, team pulse and right-hand assistant
+- Romeo's Owner Command Center with My Day, action queue, pipeline, team pulse and right-hand assistant
 - Central workboard for customers, leads, tasks, documents, links and team access
 - Left-to-right customer pipeline without a qualification stage
 - Quote-request checkbox on each customer card
 - Closed-won prompt that records the final dollar amount and creates job setup work
 - Scheduled-job prompt that creates contractor and equipment-ordering tasks
-- Owner Work Hub with priority, daily, scheduled and recurring work
+- Romeo's Owner Work Hub with priority, daily, scheduled and recurring work
 - Reference-only Price Book area with no automatic customer pricing
 - Documents and Templates categories for emails, SOPs and program questionnaires
 - Useful Links placeholders for EAP, OESP, HRS+, Peterborough, Toronto and Brampton programs
 - Quotation Maker launcher for `innogreensolutions.com/quotations`
-- Role-ready profiles for TJ, Max, Hassan, Aun and Shanairah
+- Role-ready profiles for Romeo (Owner & Operator), TJ (Sales Operations Manager), Max, Hassan, Aun and Shanairah
 - Field-sales mobile workspaces for Max and Hassan
-- Independent sales-partner workspace for Aun with learning, research and coaching tools
+- Independent sales-partner workspace for Aun with learning, research and sales coaching tools
 - Demo task creation and field voice-memo transcript workflow
 - Responsive layout for owner desktop and agent use
 - Installable desktop PWA with a standalone app window
